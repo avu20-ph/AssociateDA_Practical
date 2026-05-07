@@ -1,0 +1,146 @@
+---
+title: "Associate DS Practical"
+author: "AV"
+date: "`r Sys.Date()`"
+---
+
+```{r}
+#Calculate the number of missing values of the city.
+#You should use the data in the file "house_sales.csv".
+#Your output should be an object missing_city, that contains the number of missing values in this column.
+
+#Use this cell to write your code for Task 1
+library(dplyr)
+library(readr)
+house <- read_csv('house_sales.csv')
+missing_city <- sum(is.na(house$city) | house$city == "--")
+missing_city
+```
+
+```{r}
+#Before you fit any models, you will need to make sure the data is clean.
+#The table below shows what the data should look like.
+#Create a cleaned version of the dataframe.
+#You should start with the data in the file "house_sales.csv".
+#Your output should be a dataframe named clean_data.
+#All column names and values should match the table below.
+
+#Use this cell to write your code for Task 2
+library(dplyr)
+library(readr)
+library(stringr)
+house<-read_csv('house_sales.csv')
+house
+str(house)
+clean_data<-house%>%
+filter(!is.na(sale_price))%>%
+mutate(city=ifelse(is.na(city),"Unknown", city), city=ifelse(city=="--", "Unknown", city))%>%
+mutate(months_listed=ifelse(is.na(months_listed), round(mean(months_listed, na.rm=TRUE), 1), months_listed))%>%
+mutate(bedrooms=ifelse(is.na(bedrooms), round(mean(bedrooms, na.rm=TRUE)), bedrooms))%>%
+mutate(house_type = case_when(
+    str_detect(house_type, "^Terr") ~ "Terraced",
+    str_detect(house_type, "^Semi") ~ "Semi-detached",
+    str_detect(house_type, "^Det") ~ "Detached",
+    TRUE ~ house_type)) %>%
+mutate(house_type = ifelse(is.na(house_type),names(sort(table(house_type), decreasing = TRUE))[1],house_type)) %>%
+mutate(area=as.numeric(str_replace(area, " sq.m.", "")), area=ifelse(is.na(area), round(mean(area, na.rm=TRUE), 1), area))
+clean_data
+```
+
+```{r}
+#The team at RealAgents have told you that they have always believed that the number of bedrooms is the biggest driver of house price.
+#Producing a table showing the difference in the average sale price by number of bedrooms along with the variance to investigate this question for the team.
+#You should start with the data in the file 'house_sales.csv'.
+#Your output should be a data frame named price_by_rooms.
+#It should include the three columns bedrooms, avg_price, var_price.
+#Your answers should be rounded to 1 decimal place.
+
+#Use this cell to write your code for Task 3
+library(dplyr)
+library(readr)
+house <- read_csv('house_sales.csv')
+price_by_rooms<-house %>%
+filter(!is.na(sale_price))%>%
+group_by(bedrooms)%>%
+summarize(avg_price = round(mean(sale_price), 1), var_price = round(var(sale_price), 1), .groups = 'drop') %>%
+arrange(bedrooms)
+price_by_rooms
+```
+
+```{r}
+#Fit a baseline model to predict the sale price of a house.
+#Fit your model using the data contained in “train.csv”
+#Use “validation.csv” to predict new values based on your model. You must return a dataframe named base_result, that includes house_id and price. The price column must be your predicted values
+
+#Use this cell to write your code for Task 4
+library(dplyr)
+library(readr)
+library(lubridate)
+train <- read_csv('train.csv')
+validation <- read_csv('validation.csv')
+#City mapping (label encoding)
+city_mapping <- c('Teasdale' = 0, 'Silvertown' = 1, 'Poppleton' = 2, 'Riverford' = 3)
+house_type_mapping <- c('Detached' = 0, 'Semi-detached' = 1, 'Terraced' = 2)
+train <- train %>%
+mutate(city = recode(city, !!!city_mapping),
+  house_type = recode(house_type, !!!house_type_mapping))
+validation <- validation %>%
+mutate(city = recode(city, !!!city_mapping),
+  house_type = recode(house_type, !!!house_type_mapping))
+#Date features
+train <- train %>%
+mutate(sale_date = as.Date(sale_date),
+  day = day(sale_date),
+  month = month(sale_date),
+  year = year(sale_date))
+validation <- validation %>%
+mutate(sale_date = as.Date(sale_date),
+  day = day(sale_date),
+  month = month(sale_date),
+  year = year(sale_date))
+# Prepare features (drop house_id, sale_price, sale_date)
+X_train <- train %>% select(-house_id, -sale_price, -sale_date)
+y_train <- train$sale_price
+X_validation <- validation %>% select(-house_id, -sale_date)
+# Build training data frame with sale_price included
+train_df <- cbind(sale_price = y_train, X_train)
+# Linear Regression (Task 4 - baseline model)
+baseline_model <- lm(sale_price ~ ., data = train_df)
+# Predict on validation set
+validation$price <- predict(baseline_model, newdata = X_validation)
+# Final result
+base_result <- validation %>%
+select(house_id, price) %>%
+mutate(price = round(price, 1))
+base_result
+# Direct from model residuals
+rmse_baseline <- sqrt(mean(baseline_model$residuals^2))
+rmse_baseline
+```
+
+```{r}
+#Fit a comparison model to predict the sale price of a house.
+#Fit your model using the data contained in “train.csv”
+#Use “validation.csv” to predict new values based on your model. You must return a dataframe named compare_result, that includes house_id and price. The price column must be your predicted values.
+
+#Use this cell to write your code for Task 5
+install.packages("randomForest")
+library(randomForest)
+train_df <- cbind(sale_price = y_train, X_train)
+#Fit Random Forest comparison model
+comparison_model <- randomForest(sale_price ~ ., data = train_df)
+#Predict on validation set
+validation$price <- predict(comparison_model, newdata = X_validation)
+#Final result
+compare_result <- validation %>%
+select(house_id, price) %>%
+mutate(price = round(price, 1))
+compare_result
+#Training RMSE for comparison model
+train_pred_rf <- predict(comparison_model)
+rmse_comparison <- sqrt(mean((y_train - train_pred_rf)^2))
+cat("Comparison Model (RF) Training RMSE:", round(rmse_comparison, 0), "\n")
+#Compare with baseline
+cat("Baseline (LM) Training RMSE: 21536\n")
+cat("Improvement:", round(21536 - rmse_comparison, 0), "points\n")
+```
