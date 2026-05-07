@@ -10,9 +10,11 @@ date: "`r Sys.Date()`"
 #Your output should be an object missing_city, that contains the number of missing values in this column.
 
 #Use this cell to write your code for Task 1
+#install.packages("randomForest")
+library(here)
 library(dplyr)
 library(readr)
-house <- read_csv('house_sales.csv')
+house <- read_csv(here('Data', 'house_sales.csv'))
 missing_city <- sum(is.na(house$city) | house$city == "--")
 missing_city
 ```
@@ -29,7 +31,7 @@ missing_city
 library(dplyr)
 library(readr)
 library(stringr)
-house<-read_csv('house_sales.csv')
+house<-read_csv(here('Data', 'house_sales.csv'))
 house
 str(house)
 clean_data<-house%>%
@@ -58,7 +60,7 @@ clean_data
 #Use this cell to write your code for Task 3
 library(dplyr)
 library(readr)
-house <- read_csv('house_sales.csv')
+house <- read_csv(here('Data', 'house_sales.csv'))
 price_by_rooms<-house %>%
 filter(!is.na(sale_price))%>%
 group_by(bedrooms)%>%
@@ -76,8 +78,8 @@ price_by_rooms
 library(dplyr)
 library(readr)
 library(lubridate)
-train <- read_csv('train.csv')
-validation <- read_csv('validation.csv')
+train <- read_csv(here('data', 'train.csv'))
+validation <- read_csv(here('data', 'validation.csv'))
 #City mapping (label encoding)
 city_mapping <- c('Teasdale' = 0, 'Silvertown' = 1, 'Poppleton' = 2, 'Riverford' = 3)
 house_type_mapping <- c('Detached' = 0, 'Semi-detached' = 1, 'Terraced' = 2)
@@ -124,7 +126,6 @@ rmse_baseline
 #Use “validation.csv” to predict new values based on your model. You must return a dataframe named compare_result, that includes house_id and price. The price column must be your predicted values.
 
 #Use this cell to write your code for Task 5
-install.packages("randomForest")
 library(randomForest)
 train_df <- cbind(sale_price = y_train, X_train)
 #Fit Random Forest comparison model
